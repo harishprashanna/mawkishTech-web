@@ -1,0 +1,17 @@
+{
+  "dependencies": {
+    "@headlessui/react": "^2.2.10",
+    "@hookform/resolvers": "^5.2.2",
+    "@studio-freight/lenis": "^1.0.42",
+    "framer-motion": "^12.39.0",
+    "lucide-react": "^1.16.0",
+    "nodemailer": "^8.0.7",
+    "react-hook-form": "^7.76.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^8.0.0",
+    "prettier": "^3.8.3",
+    "prettier-plugin-tailwindcss": "^0.8.0"
+  }
+}
