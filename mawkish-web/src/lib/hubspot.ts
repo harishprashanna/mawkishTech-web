@@ -3,12 +3,11 @@ import { ContactFormData } from "./contactSchema";
 const HUBSPOT_API = "https://api.hubapi.com/crm/v3/objects/contacts";
 
 const contactProperties = (data: ContactFormData) => ({
-  firstname: data.fullName,
+  firstname: data.name,
   email: data.email,
-  phone: data.phone || "",
-  company: data.companyName,
+  company: data.company || "",
   message: data.message,
-  service_interest: data.serviceInterest,
+  service_interest: data.intent || "",
 });
 
 export async function saveToHubspot(data: ContactFormData) {

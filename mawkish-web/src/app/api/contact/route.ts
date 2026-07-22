@@ -2,44 +2,48 @@ import { NextRequest, NextResponse } from "next/server";
 import { ContactSchema } from "@/lib/contactSchema";
 import { transporter } from "@/lib/mailer";
 import { saveToHubspot } from "@/lib/hubspot";
-import { z } from 'zod'
+import { z } from "zod";
+
+const intentLabels: Record<string, string> = {
+  consultation: "Schedule a Consultation",
+  demo: "Request a Demo",
+  proposal: "Request a Proposal",
+};
+
+function formatIntent(intent?: string) {
+  if (!intent) return "Not specified";
+  return intentLabels[intent] || intent;
+}
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN || "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
 
 export async function POST(req: NextRequest) {
   try {
-    // Read JSON body from frontend request
     const body = await req.json();
-
-    // Validate incoming form data using Zod schema
     const validatedData = ContactSchema.parse(body);
 
-    // Save lead to HubSpot CRM
     await saveToHubspot(validatedData);
 
-
     // EMAIL TO COMPANY (ADMIN EMAIL)
-
     await transporter.sendMail({
-      // Sender name + email (better deliverability)
       from: `"Mawkish Technologies" <${process.env.SMTP_USER}>`,
-
-      // Company email that receives leads
       to: process.env.CONTACT_RECEIVER,
-
-      subject: `New Contact Form Submission - ${validatedData.fullName}`,
-
+      subject: `New ${formatIntent(validatedData.intent)} — ${validatedData.name}`,
       html: `
         <div style="font-family: Inter, sans-serif; background:#0A1A12; padding:40px; color:white;">
           <h1 style="color:#2E8B65;">New Lead Received</h1>
-
-          <p><strong>Name:</strong> ${validatedData.fullName}</p>
-          <p><strong>Company:</strong> ${validatedData.companyName}</p>
+          <p><strong>Name:</strong> ${validatedData.name}</p>
+          <p><strong>Company:</strong> ${validatedData.company || "Not provided"}</p>
           <p><strong>Email:</strong> ${validatedData.email}</p>
-
-          <!-- Safe fallback for optional field -->
-          <p><strong>Phone:</strong> ${validatedData.phone || "Not provided"}</p>
-
-          <p><strong>Service:</strong> ${validatedData.serviceInterest}</p>
-
+          <p><strong>Interested in:</strong> ${formatIntent(validatedData.intent)}</p>
           <div style="margin-top:20px;">
             <h3 style="color:#A8C4B4;">Message</h3>
             <p>${validatedData.message}</p>
@@ -51,53 +55,35 @@ export async function POST(req: NextRequest) {
     // CONFIRMATION EMAIL TO USER
     await transporter.sendMail({
       from: `"Mawkish Technologies" <${process.env.SMTP_USER}>`,
-
-      // USER EMAIL comes directly from form input
       to: validatedData.email,
-
-      subject: "Thank You for Contacting Mawkish Technologies",
-
+      subject: `We've received your request — ${formatIntent(validatedData.intent)}`,
       html: `
         <div style="font-family: Inter, sans-serif; background:#0A1A12; padding:40px; color:white;">
-          <h1 style="color:#2E8B65;">
-            Thank You, ${validatedData.fullName}
-          </h1>
-
-          <p>
-            We've received your inquiry. Our team will get back to you shortly.
-          </p>
-
-          <p style="margin-top:20px; color:#A8C4B4;">
-            — Mawkish Technologies Team
-          </p>
+          <h1 style="color:#2E8B65;">Thank You, ${validatedData.name}</h1>
+          <p>We've received your request to <strong>${formatIntent(validatedData.intent)}</strong>. Our team will get back to you shortly.</p>
+          <p style="margin-top:20px; color:#A8C4B4;">— Mawkish Technologies Team</p>
         </div>
       `,
     });
 
-    // Success response back to frontend
-    return NextResponse.json({
-      success: true,
-      message: "Form submitted successfully",
-    });
-
+    return NextResponse.json(
+      { success: true, ok: true, message: "Form submitted successfully" },
+      { headers: corsHeaders }
+    );
   } catch (error) {
-
     if (error instanceof z.ZodError) {
-        return NextResponse.json(
-            { success: false, message: error.issues[0].message },
-            { status: 400 }
-    )
-  }
+      const msg = error.issues[0].message;
+      return NextResponse.json(
+        { success: false, error: msg, message: msg },
+        { status: 400, headers: corsHeaders }
+      );
+    }
 
     console.error("Contact Form Error:", error);
-
-    // Error response
+    const msg = error instanceof Error ? error.message : "Something went wrong";
     return NextResponse.json(
-      {
-        success: false,
-        message: error instanceof Error ? error.message : "Something went wrong",
-      },
-      { status: 500 }
+      { success: false, error: msg, message: msg },
+      { status: 500, headers: corsHeaders }
     );
   }
 }
