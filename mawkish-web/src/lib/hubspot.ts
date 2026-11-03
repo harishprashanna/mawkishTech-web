@@ -6,8 +6,9 @@ const contactProperties = (data: ContactFormData) => ({
   firstname: data.name,
   email: data.email,
   company: data.company || "",
+  phone: data.phone || "",
   message: data.message,
-  service_interest: data.intent || "",
+  service_interest: data.service || data.intent || "",
 });
 
 export async function saveToHubspot(data: ContactFormData) {
